@@ -6,6 +6,8 @@ const API_URL = 'http://localhost:8080/api'
 function App() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [filter, setFilter] = useState('all')
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium' })
 
   useEffect(() => {
@@ -14,16 +16,24 @@ function App() {
 
   const fetchTasks = async () => {
     setLoading(true)
+    setError(null)
     try {
       const response = await fetch(`${API_URL}/tasks`)
+      if (!response.ok) throw new Error('Failed to fetch tasks')
       const data = await response.json()
       setTasks(data)
     } catch (error) {
+      setError(error.message)
       console.error('Error fetching tasks:', error)
     } finally {
       setLoading(false)
     }
   }
+
+  const filteredTasks = tasks.filter(task => {
+    if (filter === 'all') return true
+    return task.status === filter
+  })
 
   const createTask = async (e) => {
     e.preventDefault()
@@ -99,14 +109,23 @@ function App() {
         </section>
 
         <section className="task-list">
-          <h2>Tasks ({tasks.length})</h2>
+          <div className="task-list-header">
+            <h2>Tasks ({filteredTasks.length})</h2>
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="pending">Pending</option>
+              <option value="in-progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+          {error && <div className="error-message">{error}</div>}
           {loading ? (
             <p>Loading tasks...</p>
-          ) : tasks.length === 0 ? (
-            <p>No tasks yet. Create one above!</p>
+          ) : filteredTasks.length === 0 ? (
+            <p>No tasks found. {filter !== 'all' && 'Try changing the filter.'}</p>
           ) : (
             <div className="tasks">
-              {tasks.map(task => (
+              {filteredTasks.map(task => (
                 <div key={task.id} className={`task-card ${task.status}`}>
                   <div className="task-header">
                     <h3>{task.title}</h3>

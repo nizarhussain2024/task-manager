@@ -32,8 +32,8 @@ var store = &TaskStore{
 var idCounter int64
 
 func main() {
-	http.HandleFunc("/api/tasks", tasksHandler)
-	http.HandleFunc("/api/tasks/", taskHandler)
+	http.HandleFunc("/api/tasks", corsMiddleware(loggingMiddleware(tasksHandler)))
+	http.HandleFunc("/api/tasks/", corsMiddleware(loggingMiddleware(taskHandler)))
 	http.HandleFunc("/health", healthHandler)
 
 	fmt.Println("Task Manager Backend running on :8080")
@@ -103,10 +103,20 @@ func createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateTask(&task); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	store.mu.Lock()
 	idCounter++
 	task.ID = strconv.FormatInt(idCounter, 10)
-	task.Status = "pending"
+	if task.Status == "" {
+		task.Status = "pending"
+	}
+	if task.Priority == "" {
+		task.Priority = "medium"
+	}
 	task.CreatedAt = time.Now()
 	task.UpdatedAt = time.Now()
 	store.tasks[task.ID] = &task
